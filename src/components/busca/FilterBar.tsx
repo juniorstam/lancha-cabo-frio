@@ -57,7 +57,8 @@ export function FilterBar({ totalResults }: FilterBarProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
 
         {/* Linha principal */}
-        <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide pb-1">
+        <div className="flex items-center gap-3 pb-1">
+        <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide flex-1 min-w-0">
 
           {/* Botão filtros */}
           <button
@@ -108,9 +109,11 @@ export function FilterBar({ totalResults }: FilterBarProps) {
             </button>
           )}
 
-          {/* Total */}
-          <span className="ml-auto text-sm text-gray-400 whitespace-nowrap flex-shrink-0">
-            {totalResults} embarcação{totalResults !== 1 ? 'ões' : ''} encontrada{totalResults !== 1 ? 's' : ''}
+        </div>
+
+          {/* Total — fora do scroll */}
+          <span className="text-sm text-gray-400 whitespace-nowrap flex-shrink-0">
+            {totalResults} {totalResults !== 1 ? 'embarcações encontradas' : 'embarcação encontrada'}
           </span>
         </div>
 
