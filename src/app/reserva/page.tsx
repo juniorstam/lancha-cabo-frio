@@ -150,7 +150,7 @@ function ReservaContent() {
         notes:           notes || null,
         status:          'pending',
       })
-      .select('booking_code')
+      .select('id, booking_code')
       .single()
 
     if (err) {
@@ -162,6 +162,13 @@ function ReservaContent() {
     setBookingCode(data.booking_code)
     setStep(3)
     setSubmitting(false)
+
+    // Disparar emails em background (sem bloquear UI)
+    fetch('/api/booking-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingId: data.id }),
+    }).catch(() => {}) // silencia erros de email
   }
 
   if (loading) {

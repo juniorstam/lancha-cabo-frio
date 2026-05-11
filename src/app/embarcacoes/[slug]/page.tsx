@@ -6,6 +6,7 @@ import { BookingWidget } from '@/components/reserva/BookingWidget'
 import { Star, Users, Ruler, MapPin, CheckCircle, Clock, Waves, Anchor } from 'lucide-react'
 import { AMENITIES_LABELS, AMENITIES_ICONS, DIFFICULTY_LABELS, IDEAL_FOR_LABELS } from '@/constants'
 import { formatCurrency } from '@/lib/utils'
+import { MapEmbed } from '@/components/ui/MapEmbed'
 
 // Mock data — será substituído por query ao Supabase
 const MOCK_BOATS: Record<string, any> = {
@@ -166,6 +167,18 @@ export default async function EmbarcacaoPage({
                     </div>
                   ))}
                 </div>
+              </section>
+
+              {/* Mapa — Local de embarque */}
+              <section>
+                <h2 className="font-playfair text-2xl font-bold text-[#0a2540] mb-4">Local de embarque</h2>
+                <MapEmbed
+                  lat={boat.marina.lat}
+                  lng={boat.marina.lng}
+                  name={boat.marina.name}
+                  address={boat.marina.address}
+                  className="h-64 sm:h-80"
+                />
               </section>
 
               {/* Regras */}

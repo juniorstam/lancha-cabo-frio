@@ -23,27 +23,45 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  // Rotas protegidas — cliente
-  const clientRoutes = ['/reservas', '/favoritos', '/perfil']
-  const isClientRoute = clientRoutes.some((route) =>
-    request.nextUrl.pathname.startsWith(route)
-  )
+  const path = request.nextUrl.pathname
 
-  // Rotas protegidas — proprietário (desabilitado temporariamente para demo)
-  const isOwnerRoute = false // request.nextUrl.pathname.startsWith('/painel')
+  // Rotas que exigem apenas login
+  const requiresLogin = ['/reservas', '/favoritos', '/perfil', '/reserva', '/painel', '/admin']
+  const needsLogin = requiresLogin.some(r => path.startsWith(r))
 
-  // Rotas protegidas — admin (desabilitado temporariamente para demo)
-  const isAdminRoute = false // request.nextUrl.pathname.startsWith('/admin')
-
-  if (!user && (isClientRoute || isOwnerRoute || isAdminRoute)) {
+  if (!user && needsLogin) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    url.searchParams.set('redirect', request.nextUrl.pathname)
+    url.searchParams.set('redirect', path)
     return NextResponse.redirect(url)
+  }
+
+  // Rotas de proprietário — exige role owner ou admin
+  if (user && path.startsWith('/painel')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single()
+
+    if (profile?.role === 'client') {
+      return NextResponse.redirect(new URL('/', request.url))
+    }
+  }
+
+  // Rotas de admin
+  if (user && path.startsWith('/admin')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single()
+
+    if (profile?.role !== 'admin') {
+      return NextResponse.redirect(new URL('/', request.url))
+    }
   }
 
   return supabaseResponse
