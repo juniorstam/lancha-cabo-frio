@@ -19,23 +19,24 @@ export function HeroSection() {
   }
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+    <section className="relative min-h-screen flex items-center justify-center">
 
-      {/* Imagem de fundo */}
-      <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: `url('https://images.unsplash.com/photo-1567899378494-47b22a2ae96a?q=80&w=2070&auto=format&fit=crop')`,
-        }}
-      />
-
-      {/* Overlay gradiente cinematográfico */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#0a2540]/70 via-[#0a2540]/40 to-[#0a2540]/80" />
-
-      {/* Partículas decorativas */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-[#00b4d8]/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/3 right-1/4 w-96 h-96 bg-[#00b4d8]/5 rounded-full blur-3xl" />
+      {/* Background — overflow-hidden só aqui para não cortar popups */}
+      <div className="absolute inset-0 overflow-hidden">
+        {/* Imagem de fundo */}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url('https://images.unsplash.com/photo-1567899378494-47b22a2ae96a?q=80&w=2070&auto=format&fit=crop')`,
+          }}
+        />
+        {/* Overlay gradiente cinematográfico */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a2540]/70 via-[#0a2540]/40 to-[#0a2540]/80" />
+        {/* Partículas decorativas */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-[#00b4d8]/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/3 right-1/4 w-96 h-96 bg-[#00b4d8]/5 rounded-full blur-3xl" />
+        </div>
       </div>
 
       {/* Conteúdo */}
