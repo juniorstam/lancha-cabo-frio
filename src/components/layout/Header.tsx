@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { Menu, X, Heart, User, LogOut, LayoutDashboard, ChevronDown, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NAV_ITEMS } from '@/constants'
@@ -12,7 +12,11 @@ import type { User as SupabaseUser } from '@supabase/supabase-js'
 
 export function Header() {
   const router = useRouter()
+  const pathname = usePathname()
   const supabase = createClient()
+
+  // Só usa fundo transparente na home
+  const isHome = pathname === '/'
 
   const [isOpen, setIsOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -82,7 +86,7 @@ export function Header() {
     <header
       className={cn(
         'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
-        scrolled
+        scrolled || !isHome
           ? 'bg-white/95 backdrop-blur-md shadow-sm'
           : 'bg-transparent'
       )}
@@ -110,7 +114,7 @@ export function Header() {
                 href={item.href}
                 className={cn(
                   'text-sm font-medium transition-colors duration-200',
-                  scrolled
+                  scrolled || !isHome
                     ? 'text-[#0a2540] hover:text-[#00b4d8]'
                     : 'text-white/90 hover:text-white'
                 )}
@@ -126,7 +130,7 @@ export function Header() {
               href="/favoritos"
               className={cn(
                 'p-2 rounded-full transition-colors',
-                scrolled
+                scrolled || !isHome
                   ? 'text-[#0a2540] hover:bg-gray-100'
                   : 'text-white hover:bg-white/10'
               )}
@@ -148,10 +152,10 @@ export function Header() {
                       {initials}
                     </div>
                   )}
-                  <span className={cn('text-sm font-medium max-w-[100px] truncate', scrolled ? 'text-[#0a2540]' : 'text-white')}>
+                  <span className={cn('text-sm font-medium max-w-[100px] truncate', scrolled || !isHome ? 'text-[#0a2540]' : 'text-white')}>
                     {displayName.split(' ')[0]}
                   </span>
-                  <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', scrolled ? 'text-[#0a2540]' : 'text-white', menuOpen && 'rotate-180')} />
+                  <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', scrolled || !isHome ? 'text-[#0a2540]' : 'text-white', menuOpen && 'rotate-180')} />
                 </button>
 
                 {menuOpen && (
@@ -202,7 +206,7 @@ export function Header() {
                 href="/login"
                 className={cn(
                   'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all',
-                  scrolled
+                  scrolled || !isHome
                     ? 'text-[#0a2540] hover:bg-gray-100'
                     : 'text-white hover:bg-white/10'
                 )}
@@ -224,7 +228,7 @@ export function Header() {
           <button
             className={cn(
               'lg:hidden p-2 rounded-lg transition-colors',
-              scrolled ? 'text-[#0a2540]' : 'text-white'
+              scrolled || !isHome ? 'text-[#0a2540]' : 'text-white'
             )}
             onClick={() => setIsOpen(!isOpen)}
           >

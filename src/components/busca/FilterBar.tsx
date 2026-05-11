@@ -50,7 +50,7 @@ export function FilterBar({ totalResults }: FilterBarProps) {
     router.push('/embarcacoes')
   }
 
-  const hasFilters = currentCategory || currentMin || currentMax || currentCapacity
+  const hasFilters = !!(currentCategory || currentMin || currentMax || currentCapacity)
 
   return (
     <div className="bg-white border-b border-gray-100 sticky top-20 z-30">
