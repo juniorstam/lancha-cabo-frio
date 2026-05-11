@@ -16,19 +16,21 @@ export function FavoriteButton({ boatId, className, size = 'md' }: FavoriteButto
   const [favorited, setFavorited] = useState(false)
   const [loading, setLoading] = useState(false)
   const [profileId, setProfileId] = useState<string | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) return
+      if (!data.user) { setAuthLoading(false); return }
       // favorites.user_id referencia profiles(id), não auth.users(id)
       const { data: profile } = await supabase
         .from('profiles')
         .select('id')
         .eq('user_id', data.user.id)
         .single()
-      if (!profile) return
+      if (!profile) { setAuthLoading(false); return }
       setProfileId(profile.id)
-      checkFavorite(profile.id)
+      await checkFavorite(profile.id)
+      setAuthLoading(false)
     })
   }, [boatId])
 
@@ -46,8 +48,17 @@ export function FavoriteButton({ boatId, className, size = 'md' }: FavoriteButto
     e.preventDefault()
     e.stopPropagation()
 
+    // Still loading auth — wait for it to resolve
+    if (authLoading) return
+
+    // Auth resolved and no profile → not logged in
     if (!profileId) {
-      window.location.href = '/login'
+      // Double-check session before redirecting (avoids false redirect on slow networks)
+      const supabase = createClient()
+      const { data } = await supabase.auth.getSession()
+      if (!data.session) {
+        window.location.href = '/login'
+      }
       return
     }
 
@@ -74,12 +85,12 @@ export function FavoriteButton({ boatId, className, size = 'md' }: FavoriteButto
   return (
     <button
       onClick={toggle}
-      disabled={loading}
+      disabled={loading || authLoading}
       className={cn(
         btnSize,
         'bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm transition-all',
         favorited ? 'bg-red-50' : 'hover:bg-white',
-        loading && 'opacity-60',
+        (loading || authLoading) && 'opacity-60',
         className
       )}
       title={favorited ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
