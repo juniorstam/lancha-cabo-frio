@@ -24,9 +24,9 @@ const MOCK_BOATS: Record<string, any> = {
       'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?q=80&w=800',
     ],
     routes: [
-      { id: 'r1', name: 'Ilha do Japonês', duration_hours: 4, difficulty: 'calm', ideal_for: 'all', description: 'Mergulho e snorkel nas águas cristalinas.' },
-      { id: 'r2', name: 'Praia das Conchas', duration_hours: 3, difficulty: 'calm', ideal_for: 'family', description: 'Areia branca e água transparente.' },
-      { id: 'r3', name: 'Arraial do Cabo', duration_hours: 8, difficulty: 'moderate', ideal_for: 'group', description: 'O Caribe brasileiro. Lagoa Azul e Praia do Farol.', price_override: 1200 },
+      { id: 'r1', name: 'Ilha do Japonês', duration_hours: 4, difficulty: 'calm', ideal_for: 'all', description: 'Mergulho e snorkel nas águas cristalinas.', base_price: 800, base_passengers: 4, price_per_extra: 50, max_passengers: 10 },
+      { id: 'r2', name: 'Praia das Conchas', duration_hours: 3, difficulty: 'calm', ideal_for: 'family', description: 'Areia branca e água transparente.', base_price: 600, base_passengers: 4, price_per_extra: 40, max_passengers: 10 },
+      { id: 'r3', name: 'Arraial do Cabo', duration_hours: 8, difficulty: 'moderate', ideal_for: 'group', description: 'O Caribe brasileiro. Lagoa Azul e Praia do Farol.', base_price: 1200, base_passengers: 6, price_per_extra: 80, max_passengers: 10 },
     ],
     reviews: [
       { id: '1', client: { full_name: 'Carlos M.', avatar_url: '' }, rating_overall: 5, comment: 'Experiência incrível! Marinheiro super atencioso, lancha impecável. Vamos voltar com certeza!', created_at: '2024-03-15' },
@@ -218,8 +218,6 @@ export default async function EmbarcacaoPage({ params }: { params: Promise<{ slu
               <BookingWidget
                 boatId={boat.id}
                 boatName={boat.name}
-                basePrice={boat.base_price}
-                pricePerExtraPerson={boat.price_per_extra_person}
                 capacity={boat.capacity}
                 routes={boat.routes}
                 marina={boat.marina.name}

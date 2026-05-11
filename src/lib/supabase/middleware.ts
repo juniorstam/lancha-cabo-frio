@@ -33,11 +33,11 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith(route)
   )
 
-  // Rotas protegidas — proprietário
-  const isOwnerRoute = request.nextUrl.pathname.startsWith('/painel')
+  // Rotas protegidas — proprietário (desabilitado temporariamente para demo)
+  const isOwnerRoute = false // request.nextUrl.pathname.startsWith('/painel')
 
-  // Rotas protegidas — admin
-  const isAdminRoute = request.nextUrl.pathname.startsWith('/admin')
+  // Rotas protegidas — admin (desabilitado temporariamente para demo)
+  const isAdminRoute = false // request.nextUrl.pathname.startsWith('/admin')
 
   if (!user && (isClientRoute || isOwnerRoute || isAdminRoute)) {
     const url = request.nextUrl.clone()
