@@ -7,22 +7,10 @@ import { Header } from '@/components/layout/Header'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
 import {
-  Calendar, Users, MapPin, Anchor, Shield, CheckCircle,
+  Calendar, Users, MapPin, Shield, CheckCircle,
   ChevronLeft, ChevronRight, Clock, AlertCircle, CreditCard, Smartphone
 } from 'lucide-react'
 import { motion } from 'framer-motion'
-
-// Mock boat data — será substituído por query real
-const MOCK_BOAT = {
-  id: '1', name: 'Focker 310', slug: 'focker-310',
-  marina: 'Marina Pier 98 — Av. Julia Kubitscheck, 98, Braga, Cabo Frio',
-  image: 'https://images.unsplash.com/photo-1605281317010-fe5ffe798166?q=80&w=800',
-  routes: [
-    { id: 'r1', name: 'Ilha do Japonês', duration_hours: 4, base_price: 800, base_passengers: 4, price_per_extra: 50, max_passengers: 10 },
-    { id: 'r2', name: 'Praia das Conchas', duration_hours: 3, base_price: 600, base_passengers: 4, price_per_extra: 40, max_passengers: 10 },
-    { id: 'r3', name: 'Arraial do Cabo', duration_hours: 8, base_price: 1200, base_passengers: 6, price_per_extra: 80, max_passengers: 10 },
-  ],
-}
 
 const HOLIDAYS_MD: Array<[number, number]> = [
   [1,1],[4,21],[5,1],[9,7],[10,12],[11,2],[11,15],[12,24],[12,25],[12,31]
@@ -37,52 +25,141 @@ function ReservaContent() {
   const params = useSearchParams()
   const supabase = createClient()
 
-  const boatId   = params.get('boat') || '1'
-  const dateParam = params.get('date') || ''
-  const paxParam  = parseInt(params.get('passengers') || '2')
-  const routeParam = params.get('route') || MOCK_BOAT.routes[0].id
+  const boatParam  = params.get('boat') || ''
+  const dateParam  = params.get('date') || ''
+  const paxParam   = parseInt(params.get('passengers') || '2')
+  const routeParam = params.get('route') || ''
 
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [step, setStep] = useState<1|2|3>(1)
-  const [notes, setNotes] = useState('')
+  const [user, setUser]           = useState<any>(null)
+  const [profile, setProfile]     = useState<any>(null)
+  const [boat, setBoat]           = useState<any>(null)
+  const [boatRoute, setBoatRoute] = useState<any>(null)
+  const [loading, setLoading]     = useState(true)
+  const [step, setStep]           = useState<1|2|3>(1)
+  const [notes, setNotes]         = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [bookingCode, setBookingCode] = useState('')
-
-  const route = MOCK_BOAT.routes.find(r => r.id === routeParam) ?? MOCK_BOAT.routes[0]
-  const weekend = isWeekend(dateParam)
-  const holiday = isHoliday(dateParam)
-  const multiplier = holiday ? 1.5 : weekend ? 1.3 : 1.0
-  const seasonLabel = holiday ? '🎉 Feriado (+50%)' : weekend ? '📅 Fim de semana (+30%)' : null
-
-  const extraPax    = Math.max(0, paxParam - route.base_passengers)
-  const extraCost   = extraPax * route.price_per_extra
-  const subtotalBase = route.base_price + extraCost
-  const subtotal    = Math.round(subtotalBase * multiplier * 100) / 100
-  const platformFee = Math.round(subtotal * PLATFORM_FEE * 100) / 100
-  const total       = subtotal + platformFee
-
-  const dateFormatted = dateParam
-    ? new Date(dateParam + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-    : '—'
+  const [error, setError]         = useState('')
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) {
+    async function init() {
+      // Verificar autenticação
+      const { data: { user: u } } = await supabase.auth.getUser()
+      if (!u) {
         router.push(`/login?redirect=/reserva?${params.toString()}`)
         return
       }
-      setUser(data.user)
+      setUser(u)
+
+      // Buscar perfil
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('id, role')
+        .eq('user_id', u.id)
+        .single()
+      setProfile(prof)
+
+      // Buscar embarcação — por slug ou id
+      const { data: boatData } = await supabase
+        .from('boats')
+        .select(`
+          id, name, slug, capacity,
+          marina:marinas(name, address),
+          photos:boat_photos(url, is_cover)
+        `)
+        .or(`slug.eq.${boatParam},id.eq.${boatParam}`)
+        .eq('status', 'active')
+        .single()
+
+      if (!boatData) {
+        // fallback para focker-310 (único barco no banco por enquanto)
+        const { data: fallback } = await supabase
+          .from('boats')
+          .select(`id, name, slug, capacity, marina:marinas(name, address), photos:boat_photos(url, is_cover)`)
+          .eq('status', 'active')
+          .single()
+        setBoat(fallback)
+        // buscar qualquer boat_route desse barco
+        if (fallback) {
+          const { data: br } = await supabase
+            .from('boat_routes')
+            .select('id, base_price, base_passengers, price_per_extra, max_passengers, route:routes(id, name, duration_hours)')
+            .eq('boat_id', fallback.id)
+            .limit(1)
+            .single()
+          setBoatRoute(br)
+        }
+      } else {
+        setBoat(boatData)
+        // Buscar boat_route específico ou qualquer um do barco
+        const { data: br } = await supabase
+          .from('boat_routes')
+          .select('id, base_price, base_passengers, price_per_extra, max_passengers, route:routes(id, name, duration_hours)')
+          .eq('boat_id', boatData.id)
+          .order('base_price')
+          .limit(1)
+          .single()
+        setBoatRoute(br)
+      }
+
       setLoading(false)
-    })
+    }
+    init()
   }, [])
 
+  // Cálculos de preço
+  const basePax    = boatRoute?.base_passengers ?? 4
+  const basePrice  = boatRoute?.base_price ?? 0
+  const priceExtra = boatRoute?.price_per_extra ?? 0
+  const extraPax   = Math.max(0, paxParam - basePax)
+  const extraCost  = extraPax * priceExtra
+  const subtotalBase = basePrice + extraCost
+  const weekend    = dateParam ? isWeekend(dateParam) : false
+  const holiday    = dateParam ? isHoliday(dateParam) : false
+  const multiplier = holiday ? 1.5 : weekend ? 1.3 : 1.0
+  const subtotal   = Math.round(subtotalBase * multiplier * 100) / 100
+  const platformFee = Math.round(subtotal * PLATFORM_FEE * 100) / 100
+  const total      = subtotal + platformFee
+  const seasonLabel = holiday ? '🎉 Feriado (+50%)' : weekend ? '📅 Fim de semana (+30%)' : null
+
+  const dateFormatted = dateParam
+    ? new Date(dateParam + 'T12:00:00').toLocaleDateString('pt-BR', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+      })
+    : '—'
+
+  const coverPhoto = boat?.photos?.find((p: any) => p.is_cover)?.url || boat?.photos?.[0]?.url || ''
+
   async function handleConfirm() {
+    if (!profile || !boat || !boatRoute) return
     setSubmitting(true)
-    // Aqui virá a integração com Mercado Pago / Supabase
-    // Por ora, simula sucesso após 1.5s
-    await new Promise(r => setTimeout(r, 1500))
-    setBookingCode('LCF-2026-' + Math.floor(Math.random() * 900 + 100))
+    setError('')
+
+    const { data, error: err } = await supabase
+      .from('bookings')
+      .insert({
+        boat_id:         boat.id,
+        client_id:       profile.id,
+        route_id:        boatRoute.route?.id ?? null,
+        date:            dateParam,
+        passenger_count: paxParam,
+        base_price:      basePrice,
+        extras_total:    extraCost,
+        platform_fee:    platformFee,
+        total_amount:    total,
+        notes:           notes || null,
+        status:          'pending',
+      })
+      .select('booking_code')
+      .single()
+
+    if (err) {
+      setError('Erro ao confirmar reserva. Tente novamente.')
+      setSubmitting(false)
+      return
+    }
+
+    setBookingCode(data.booking_code)
     setStep(3)
     setSubmitting(false)
   }
@@ -95,7 +172,7 @@ function ReservaContent() {
     )
   }
 
-  // Step 3 — Confirmação
+  // Step 3 — Sucesso
   if (step === 3) {
     return (
       <div className="min-h-screen bg-[#f8fafc] pt-20 flex items-center justify-center px-4">
@@ -112,10 +189,22 @@ function ReservaContent() {
           <p className="text-2xl font-bold text-[#00b4d8] mb-6">{bookingCode}</p>
 
           <div className="bg-gray-50 rounded-2xl p-4 text-left space-y-2 mb-6 text-sm">
-            <div className="flex justify-between"><span className="text-gray-500">Passeio</span><span className="font-medium text-[#0a2540]">{route.name}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Data</span><span className="font-medium text-[#0a2540] capitalize">{dateFormatted}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Passageiros</span><span className="font-medium text-[#0a2540]">{paxParam}</span></div>
-            <div className="flex justify-between border-t pt-2 mt-2"><span className="font-semibold text-[#0a2540]">Total</span><span className="font-bold text-[#0a2540]">{formatCurrency(total)}</span></div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Passeio</span>
+              <span className="font-medium text-[#0a2540]">{boatRoute?.route?.name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Data</span>
+              <span className="font-medium text-[#0a2540] capitalize">{dateFormatted}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Passageiros</span>
+              <span className="font-medium text-[#0a2540]">{paxParam}</span>
+            </div>
+            <div className="flex justify-between border-t pt-2 mt-2">
+              <span className="font-semibold text-[#0a2540]">Total</span>
+              <span className="font-bold text-[#0a2540]">{formatCurrency(total)}</span>
+            </div>
           </div>
 
           <p className="text-xs text-gray-400 mb-6">
@@ -139,10 +228,10 @@ function ReservaContent() {
     <div className="min-h-screen bg-[#f8fafc] pt-20">
       <div className="max-w-5xl mx-auto px-4 py-8">
 
-        {/* Breadcrumb / Steps */}
+        {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-gray-400 mb-8">
-          <Link href={`/embarcacoes/${MOCK_BOAT.slug}`} className="hover:text-[#0a2540] transition-colors flex items-center gap-1">
-            <ChevronLeft className="w-4 h-4" /> {MOCK_BOAT.name}
+          <Link href={`/embarcacoes/${boat?.slug || ''}`} className="hover:text-[#0a2540] transition-colors flex items-center gap-1">
+            <ChevronLeft className="w-4 h-4" /> {boat?.name}
           </Link>
           <span>/</span>
           <span className={step >= 1 ? 'text-[#0a2540] font-medium' : ''}>Resumo</span>
@@ -155,32 +244,32 @@ function ReservaContent() {
           {/* Coluna principal */}
           <div className="lg:col-span-2 space-y-4">
 
-            {/* Step 1 — Revisão */}
+            {/* Step 1 */}
             {step === 1 && (
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                   <h2 className="font-semibold text-[#0a2540] text-xl mb-5">Revise sua reserva</h2>
 
-                  {/* Boat */}
                   <div className="flex gap-4 mb-6 pb-6 border-b border-gray-100">
-                    <img src={MOCK_BOAT.image} alt={MOCK_BOAT.name} className="w-24 h-24 rounded-xl object-cover flex-shrink-0" />
+                    {coverPhoto && (
+                      <img src={coverPhoto} alt={boat?.name} className="w-24 h-24 rounded-xl object-cover flex-shrink-0" />
+                    )}
                     <div>
                       <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">Embarcação</p>
-                      <p className="font-semibold text-[#0a2540] text-lg">{MOCK_BOAT.name}</p>
+                      <p className="font-semibold text-[#0a2540] text-lg">{boat?.name}</p>
                       <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
                         <MapPin className="w-3.5 h-3.5 text-[#00b4d8]" />
-                        {MOCK_BOAT.marina}
+                        {(boat?.marina as any)?.name} — {(boat?.marina as any)?.address}
                       </p>
                     </div>
                   </div>
 
-                  {/* Detalhes */}
                   <div className="grid sm:grid-cols-2 gap-4 mb-6">
                     <div className="bg-gray-50 rounded-xl p-4">
                       <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">Roteiro</p>
-                      <p className="font-semibold text-[#0a2540]">{route.name}</p>
+                      <p className="font-semibold text-[#0a2540]">{boatRoute?.route?.name}</p>
                       <p className="text-xs text-gray-400 flex items-center gap-1 mt-1">
-                        <Clock className="w-3 h-3" /> {route.duration_hours}h de passeio
+                        <Clock className="w-3 h-3" /> {boatRoute?.route?.duration_hours}h de passeio
                       </p>
                     </div>
                     <div className="bg-gray-50 rounded-xl p-4">
@@ -191,16 +280,14 @@ function ReservaContent() {
                     <div className="bg-gray-50 rounded-xl p-4">
                       <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">Passageiros</p>
                       <p className="font-semibold text-[#0a2540]">{paxParam} pessoa{paxParam > 1 ? 's' : ''}</p>
-                      {extraPax > 0 && <p className="text-xs text-gray-400 mt-1">{extraPax} extra{extraPax > 1 ? 's' : ''} × {formatCurrency(route.price_per_extra)}</p>}
+                      {extraPax > 0 && <p className="text-xs text-gray-400 mt-1">{extraPax} extra × {formatCurrency(priceExtra)}</p>}
                     </div>
                     <div className="bg-gray-50 rounded-xl p-4">
                       <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">Saída</p>
-                      <p className="font-semibold text-[#0a2540] text-sm">Marina Pier 98</p>
-                      <p className="text-xs text-gray-400 mt-1">Braga, Cabo Frio</p>
+                      <p className="font-semibold text-[#0a2540] text-sm">{(boat?.marina as any)?.name}</p>
                     </div>
                   </div>
 
-                  {/* Observações */}
                   <div>
                     <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
                       Observações (opcional)
@@ -225,57 +312,40 @@ function ReservaContent() {
               </motion.div>
             )}
 
-            {/* Step 2 — Pagamento */}
+            {/* Step 2 */}
             {step === 2 && (
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-                <button
-                  onClick={() => setStep(1)}
-                  className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#0a2540] transition-colors mb-4"
-                >
+                <button onClick={() => setStep(1)} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#0a2540] transition-colors mb-4">
                   <ChevronLeft className="w-4 h-4" /> Voltar ao resumo
                 </button>
 
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                   <h2 className="font-semibold text-[#0a2540] text-xl mb-2">Forma de pagamento</h2>
-                  <p className="text-sm text-gray-400 mb-6">
-                    Escolha como prefere pagar. O pagamento é processado com segurança via Mercado Pago.
-                  </p>
+                  <p className="text-sm text-gray-400 mb-6">Integração com Mercado Pago em breve. Ao confirmar, o proprietário entrará em contato.</p>
 
-                  {/* Opções de pagamento (visual apenas — MP será integrado) */}
                   <div className="space-y-3 mb-6">
                     {[
                       { icon: CreditCard, label: 'Cartão de crédito', desc: 'Até 12x sem juros', active: true },
                       { icon: Smartphone, label: 'Pix', desc: 'Pagamento instantâneo', active: false },
-                    ].map((option) => (
-                      <div
-                        key={option.label}
-                        className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                          option.active ? 'border-[#0a2540] bg-[#0a2540]/5' : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${option.active ? 'bg-[#0a2540]' : 'bg-gray-100'}`}>
-                          <option.icon className={`w-5 h-5 ${option.active ? 'text-white' : 'text-gray-400'}`} />
+                    ].map(opt => (
+                      <div key={opt.label} className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${opt.active ? 'border-[#0a2540] bg-[#0a2540]/5' : 'border-gray-200'}`}>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${opt.active ? 'bg-[#0a2540]' : 'bg-gray-100'}`}>
+                          <opt.icon className={`w-5 h-5 ${opt.active ? 'text-white' : 'text-gray-400'}`} />
                         </div>
                         <div>
-                          <p className="font-semibold text-[#0a2540] text-sm">{option.label}</p>
-                          <p className="text-xs text-gray-400">{option.desc}</p>
+                          <p className="font-semibold text-[#0a2540] text-sm">{opt.label}</p>
+                          <p className="text-xs text-gray-400">{opt.desc}</p>
                         </div>
-                        {option.active && (
-                          <div className="ml-auto w-5 h-5 rounded-full bg-[#0a2540] flex items-center justify-center">
-                            <CheckCircle className="w-3.5 h-3.5 text-white" />
-                          </div>
-                        )}
+                        {opt.active && <CheckCircle className="w-5 h-5 text-[#0a2540] ml-auto" />}
                       </div>
                     ))}
                   </div>
 
-                  {/* Aviso integração */}
-                  <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl mb-6">
-                    <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-amber-700">
-                      <strong>Em breve:</strong> integração com Mercado Pago. Por enquanto, ao confirmar a reserva o proprietário entrará em contato para combinar o pagamento.
-                    </p>
-                  </div>
+                  {error && (
+                    <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm mb-4">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />{error}
+                    </div>
+                  )}
 
                   <button
                     onClick={handleConfirm}
@@ -292,18 +362,18 @@ function ReservaContent() {
             )}
           </div>
 
-          {/* Sidebar — Resumo de valores */}
+          {/* Sidebar */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sticky top-28">
               <h3 className="font-semibold text-[#0a2540] mb-4">Resumo do valor</h3>
               <div className="space-y-2.5 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Passeio base <span className="text-xs text-gray-400">({route.base_passengers} pax inc.)</span></span>
-                  <span className="font-medium">{formatCurrency(route.base_price)}</span>
+                  <span className="text-gray-600">Passeio base <span className="text-xs text-gray-400">({basePax} pax inc.)</span></span>
+                  <span className="font-medium">{formatCurrency(basePrice)}</span>
                 </div>
                 {extraPax > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-gray-600">{extraPax} pax extra × {formatCurrency(route.price_per_extra)}</span>
+                    <span className="text-gray-600">{extraPax} extra × {formatCurrency(priceExtra)}</span>
                     <span className="font-medium">{formatCurrency(extraCost)}</span>
                   </div>
                 )}
@@ -314,7 +384,7 @@ function ReservaContent() {
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Taxa de reserva <span className="text-xs bg-gray-100 px-1.5 py-0.5 rounded-full">10%</span></span>
+                  <span className="text-gray-600">Taxa <span className="text-xs bg-gray-100 px-1.5 py-0.5 rounded-full">10%</span></span>
                   <span className="font-medium">{formatCurrency(platformFee)}</span>
                 </div>
                 <div className="border-t border-gray-100 pt-2.5 flex justify-between">
@@ -322,15 +392,12 @@ function ReservaContent() {
                   <span className="font-bold text-[#0a2540] text-lg">{formatCurrency(total)}</span>
                 </div>
               </div>
-
               <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
                 <div className="flex items-center gap-2 text-xs text-gray-400">
-                  <Shield className="w-3.5 h-3.5 text-green-500" />
-                  Reserva segura e protegida
+                  <Shield className="w-3.5 h-3.5 text-green-500" />Reserva segura e protegida
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-400">
-                  <CheckCircle className="w-3.5 h-3.5 text-green-500" />
-                  Cancelamento gratuito em 24h
+                  <CheckCircle className="w-3.5 h-3.5 text-green-500" />Cancelamento gratuito em 24h
                 </div>
               </div>
             </div>
