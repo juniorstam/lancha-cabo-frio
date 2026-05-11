@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ChevronLeft, Anchor, Plus, X, Upload, Image as ImageIcon } from 'lucide-react'
+import { ChevronLeft, Anchor, Plus, X, Upload, Image as ImageIcon, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
 
 const CATEGORIES = [
@@ -46,8 +46,9 @@ export default function NovaEmbarcacaoPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
 
-  const [saving, setSaving] = useState(false)
-  const [error, setError]   = useState('')
+  const [saving, setSaving]     = useState(false)
+  const [error, setError]       = useState('')
+  const [termsOk, setTermsOk]   = useState(false)
 
   const [form, setForm] = useState({
     name:                 '',
@@ -168,6 +169,7 @@ export default function NovaEmbarcacaoPage() {
 
     if (!form.name.trim())        { setError('Nome é obrigatório.'); return }
     if (!form.description.trim()) { setError('Descrição é obrigatória.'); return }
+    if (!termsOk)                 { setError('Você precisa concordar com os Termos de Uso.'); return }
     if (Number(form.base_passengers) > Number(form.capacity)) {
       setError('Passageiros inclusos no preço não pode ser maior que a capacidade máxima.')
       return
@@ -207,7 +209,7 @@ export default function NovaEmbarcacaoPage() {
         owner_id:               profile.id,
         city_id:                (await supabase.from('cities').select('id').eq('slug', 'cabo-frio').single()).data?.id,
         marina_id:              marina?.id ?? null,
-        status:                 'pending',
+        status:                 'active',
         amenities,
       })
       .select('id')
@@ -269,9 +271,13 @@ export default function NovaEmbarcacaoPage() {
 
                 <div>
                   <label className="text-xs font-semibold text-gray-500 block mb-1.5">CATEGORIA</label>
-                  <select value={form.category} onChange={e => set('category', e.target.value)} className={inputCls}>
-                    {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                  </select>
+                  <div className="relative">
+                    <select value={form.category} onChange={e => set('category', e.target.value)}
+                      className={inputCls + ' appearance-none pr-9'}>
+                      {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  </div>
                 </div>
 
                 <div>
@@ -433,6 +439,34 @@ export default function NovaEmbarcacaoPage() {
               <input ref={fileInputRef} type="file" multiple accept="image/*"
                 onChange={handleFiles} className="hidden" />
             </div>
+
+            {/* Termos de uso */}
+            <label className="flex items-start gap-3 cursor-pointer group">
+              <div className="relative flex-shrink-0 mt-0.5">
+                <input type="checkbox" checked={termsOk} onChange={e => setTermsOk(e.target.checked)}
+                  className="sr-only peer" />
+                <div className={`w-5 h-5 rounded-md border-2 transition-all flex items-center justify-center ${
+                  termsOk ? 'bg-[#0a2540] border-[#0a2540]' : 'bg-white border-gray-300 group-hover:border-[#00b4d8]'
+                }`}>
+                  {termsOk && (
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+              </div>
+              <span className="text-sm text-gray-600 leading-snug">
+                Li e concordo com os{' '}
+                <Link href="/termos" target="_blank" className="text-[#00b4d8] hover:underline font-medium">
+                  Termos de Uso
+                </Link>{' '}
+                e{' '}
+                <Link href="/privacidade" target="_blank" className="text-[#00b4d8] hover:underline font-medium">
+                  Política de Privacidade
+                </Link>.
+                Ao cadastrar, minha embarcação ficará disponível imediatamente na plataforma.
+              </span>
+            </label>
 
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">

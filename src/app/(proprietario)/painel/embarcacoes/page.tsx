@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { formatCurrency } from '@/lib/utils'
-import { ChevronLeft, Plus, Edit, Eye, ToggleLeft, ToggleRight } from 'lucide-react'
+import { ChevronLeft, Plus, Edit, Eye } from 'lucide-react'
 import Link from 'next/link'
+import { EmbarcacaoActions } from './EmbarcacaoActions'
 
 export default async function PainelEmbarcacoesPage() {
   const supabase = await createClient()
@@ -143,12 +144,11 @@ export default async function PainelEmbarcacoesPage() {
                   >
                     <Edit className="w-4 h-4" /> Editar
                   </Link>
-                  <div className="ml-auto flex items-center gap-1.5 px-3 py-2 text-sm text-gray-400 rounded-lg">
-                    {boat.status === 'active'
-                      ? <><ToggleRight className="w-4 h-4 text-green-500" /> Ativo</>
-                      : <><ToggleLeft className="w-4 h-4" /> {boat.status === 'pending' ? 'Pendente aprovação' : 'Inativo'}</>
-                    }
-                  </div>
+                  <EmbarcacaoActions
+                    boatId={boat.id}
+                    boatName={boat.name}
+                    initialStatus={boat.status}
+                  />
                 </div>
               </div>
             ))}
