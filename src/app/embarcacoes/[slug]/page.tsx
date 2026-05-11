@@ -53,8 +53,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   }
 }
 
-export default async function EmbarcacaoPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function EmbarcacaoPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>
+  searchParams: Promise<{ route?: string }>
+}) {
   const { slug } = await params
+  const { route: preselectedRoute } = await searchParams
   const boat = MOCK_BOATS[slug]
   if (!boat) notFound()
 
@@ -221,6 +228,7 @@ export default async function EmbarcacaoPage({ params }: { params: Promise<{ slu
                 capacity={boat.capacity}
                 routes={boat.routes}
                 marina={boat.marina.name}
+                preselectedRoute={preselectedRoute}
               />
             </div>
           </div>

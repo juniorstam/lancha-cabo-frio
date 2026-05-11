@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
-import { Calendar, Users, MapPin, Shield, ChevronRight, Sun, Moon, AlertCircle } from 'lucide-react'
+import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Users, MapPin, Shield, ChevronRight, Sun, AlertCircle } from 'lucide-react'
 import { formatCurrency, calculatePlatformFee } from '@/lib/utils'
 import { PLATFORM_FEE_PERCENT } from '@/constants'
+import { DatePicker } from '@/components/ui/DatePicker'
 
 interface Route {
   id: string
@@ -20,9 +21,10 @@ interface Route {
 interface BookingWidgetProps {
   boatId: string
   boatName: string
-  capacity: number             // capacidade total da embarcação
+  capacity: number
   routes: Route[]
   marina: string
+  preselectedRoute?: string    // slug ou id do roteiro pré-selecionado
 }
 
 // Feriados nacionais brasileiros recorrentes (mês/dia)
@@ -59,11 +61,19 @@ export function BookingWidget({
   capacity,
   routes,
   marina,
+  preselectedRoute,
 }: BookingWidgetProps) {
   const router = useRouter()
   const [date, setDate] = useState('')
   const [passengers, setPassengers] = useState(2)
-  const [selectedRoute, setSelectedRoute] = useState(routes[0]?.id || '')
+
+  // Pré-selecionar rota por slug ou id
+  const initialRoute = routes.find(r =>
+    r.id === preselectedRoute ||
+    r.name.toLowerCase().replace(/\s+/g, '-') === preselectedRoute
+  )?.id || routes[0]?.id || ''
+
+  const [selectedRoute, setSelectedRoute] = useState(initialRoute)
 
   const route = routes.find(r => r.id === selectedRoute)
 
@@ -97,13 +107,13 @@ export function BookingWidget({
       alert('Selecione uma data para continuar.')
       return
     }
-    const params = new URLSearchParams({
+    const p = new URLSearchParams({
       boat: boatId,
       date,
       passengers: String(passengers),
       route: selectedRoute,
     })
-    router.push(`/reserva?${params.toString()}`)
+    router.push(`/reserva?${p.toString()}`)
   }
 
   const today = new Date().toISOString().split('T')[0]
@@ -125,25 +135,12 @@ export function BookingWidget({
       <div className="space-y-3 mb-5">
 
         {/* Data */}
-        <div className="border border-gray-200 rounded-xl px-4 py-3 focus-within:border-[#00b4d8] transition-colors">
-          <label className="text-xs font-semibold text-gray-500 block mb-1">DATA DO PASSEIO</label>
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-[#00b4d8] flex-shrink-0" />
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              min={today}
-              className="flex-1 text-sm text-gray-800 outline-none cursor-pointer"
-            />
-          </div>
-          {date && seasonalLabel && (
-            <p className="text-xs font-medium text-amber-600 mt-1.5 flex items-center gap-1">
-              <Sun className="w-3.5 h-3.5" />
-              {seasonalLabel}
-            </p>
-          )}
-        </div>
+        <DatePicker
+          value={date}
+          onChange={setDate}
+          min={today}
+          seasonLabel={date ? seasonalLabel : null}
+        />
 
         {/* Passageiros */}
         <div className="border border-gray-200 rounded-xl px-4 py-3">

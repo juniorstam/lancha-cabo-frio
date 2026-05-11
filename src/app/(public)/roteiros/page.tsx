@@ -191,7 +191,7 @@ export default function RoteirosPage() {
                       </p>
                     </div>
                     <Link
-                      href="/embarcacoes"
+                      href={`/embarcacoes/focker-310?route=${roteiro.slug}`}
                       className="flex items-center gap-1.5 px-4 py-2 bg-[#0a2540] text-white text-sm font-semibold rounded-xl hover:bg-[#0d3060] transition-colors"
                     >
                       Reservar
