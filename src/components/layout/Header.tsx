@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { Menu, X, Heart, User, LogOut, LayoutDashboard, ChevronDown } from 'lucide-react'
+import { Menu, X, Heart, User, LogOut, LayoutDashboard, ChevronDown, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NAV_ITEMS } from '@/constants'
 import { createClient } from '@/lib/supabase/client'
@@ -167,6 +167,14 @@ export function Header() {
                     >
                       <LayoutDashboard className="w-4 h-4 text-[#00b4d8]" />
                       {dashboardLabel}
+                    </Link>
+                    <Link
+                      href="/reservas"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <Calendar className="w-4 h-4 text-[#00b4d8]" />
+                      Minhas reservas
                     </Link>
                     <Link
                       href="/perfil"
