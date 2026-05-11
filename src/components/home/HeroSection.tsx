@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, Users, Calendar, MapPin, ChevronDown } from 'lucide-react'
+import { Search, Users, MapPin, ChevronDown } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { DatePicker } from '@/components/ui/DatePicker'
 
 export function HeroSection() {
   const router = useRouter()
@@ -83,20 +84,12 @@ export function HeroSection() {
           <div className="flex flex-col sm:flex-row gap-2">
 
             {/* Data */}
-            <div className="flex-1 flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">
-              <Calendar className="w-5 h-5 text-[#00b4d8] flex-shrink-0" />
-              <div className="flex-1 text-left">
-                <p className="text-xs text-gray-500 font-medium">Data</p>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="w-full text-sm text-gray-800 font-medium bg-transparent outline-none cursor-pointer"
-                  placeholder="Escolha a data"
-                />
-              </div>
-            </div>
+            <DatePicker
+              value={date}
+              onChange={setDate}
+              variant="hero"
+              placeholder="Escolha a data"
+            />
 
             <div className="hidden sm:block w-px bg-gray-200 my-2" />
 
