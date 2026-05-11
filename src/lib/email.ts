@@ -2,7 +2,9 @@ import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-const FROM = 'Lancha em Cabo Frio <reservas@lanchaemcabofrio.com.br>'
+// Em dev/sem domínio verificado: usa o remetente padrão do Resend
+// Em prod com domínio verificado: usar RESEND_FROM_EMAIL no .env
+const FROM = process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev'
 
 // ─────────────────────────────────────────────────────────
 // Email para o CLIENTE: confirmação de reserva
