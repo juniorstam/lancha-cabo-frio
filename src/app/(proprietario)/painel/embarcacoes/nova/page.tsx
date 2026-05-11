@@ -1,48 +1,63 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { createClient } from '@/lib/supabase/client'
-import { ChevronLeft, Anchor, Plus, X } from 'lucide-react'
+import { ChevronLeft, Anchor, Plus, X, Upload, Image as ImageIcon } from 'lucide-react'
 import Link from 'next/link'
 
 const CATEGORIES = [
-  { value: 'lancha', label: 'Lancha' },
-  { value: 'lancha_cabinada', label: 'Lancha Cabinada' },
-  { value: 'jet_ski', label: 'Jet Ski' },
-  { value: 'veleiro', label: 'Veleiro' },
-  { value: 'catamarao', label: 'Catamarã' },
-  { value: 'escuna', label: 'Escuna' },
+  { value: 'lancha',   label: 'Lancha' },
+  { value: 'jetski',   label: 'Jet Ski' },
+  { value: 'barco',    label: 'Barco' },
+  { value: 'veleiro',  label: 'Veleiro' },
+  { value: 'catamara', label: 'Catamarã' },
 ]
 
 const AMENITIES_OPTIONS = [
-  { key: 'marinheiro', label: '👨‍✈️ Marinheiro' },
-  { key: 'churrasqueira', label: '🔥 Churrasqueira' },
-  { key: 'cooler', label: '🧊 Cooler' },
-  { key: 'banheiro', label: '🚽 Banheiro' },
-  { key: 'ducha', label: '🚿 Ducha' },
-  { key: 'som', label: '🔊 Som' },
-  { key: 'wifi', label: '📶 Wi-Fi' },
-  { key: 'toldo', label: '⛱️ Toldo' },
-  { key: 'ancora', label: '⚓ Âncora' },
+  { key: 'marinheiro',   label: '👨‍✈️ Marinheiro' },
+  { key: 'churrasqueira',label: '🔥 Churrasqueira' },
+  { key: 'cooler',       label: '🧊 Cooler' },
+  { key: 'banheiro',     label: '🚽 Banheiro' },
+  { key: 'ducha',        label: '🚿 Ducha' },
+  { key: 'som',          label: '🔊 Som' },
+  { key: 'wifi',         label: '📶 Wi-Fi' },
+  { key: 'toldo',        label: '⛱️ Toldo' },
+  { key: 'ancora',       label: '⚓ Âncora' },
 ]
+
+const RULES_SUGGESTIONS = [
+  'Proibido fumar a bordo',
+  'Uso obrigatório de colete ao entrar na água',
+  'Respeite o limite de passageiros',
+  'Não é permitido levar animais',
+  'Lixo não deve ser jogado no mar',
+  'Bebidas alcoólicas com moderação',
+  'Crianças devem estar sempre sob supervisão',
+  'Proibido uso de fogos de artifício',
+  'Respeite os horários de saída e retorno',
+]
+
+const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#00b4d8] transition-colors bg-white'
 
 export default function NovaEmbarcacaoPage() {
   const router = useRouter()
   const supabase = createClient()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError]   = useState('')
 
   const [form, setForm] = useState({
-    name: '',
-    category: 'lancha',
-    capacity: 10,
-    size_ft: 22,
-    base_price: 800,
-    description: '',
-    rules: '• Proibido fumar a bordo\n• Uso obrigatório de colete ao entrar na água\n• Respeite o limite de passageiros\n• Não é permitido levar animais\n• Lixo não deve ser jogado no mar',
+    name:                 '',
+    category:             'lancha',
+    capacity:             10,
+    base_passengers:      4,
+    size_ft:              22,
+    base_price:           800,
+    price_per_extra_person: 80,
+    description:          '',
   })
 
   const [amenities, setAmenities] = useState<Record<string, boolean>>({
@@ -50,9 +65,20 @@ export default function NovaEmbarcacaoPage() {
     ducha: false, som: true, wifi: false, toldo: false, ancora: true,
   })
 
-  const [photoUrls, setPhotoUrls] = useState<string[]>([''])
+  // Regras
+  const [activeRules, setActiveRules] = useState<string[]>([
+    'Proibido fumar a bordo',
+    'Uso obrigatório de colete ao entrar na água',
+    'Lixo não deve ser jogado no mar',
+  ])
+  const [customRule, setCustomRule] = useState('')
 
-  function set(key: string, value: any) {
+  // Fotos
+  const [photoFiles,    setPhotoFiles]    = useState<File[]>([])
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
+  const [uploadProgress, setUploadProgress] = useState(0)
+
+  function set(key: string, value: unknown) {
     setForm(f => ({ ...f, [key]: value }))
   }
 
@@ -60,24 +86,68 @@ export default function NovaEmbarcacaoPage() {
     setAmenities(a => ({ ...a, [key]: !a[key] }))
   }
 
-  function addPhotoField() {
-    setPhotoUrls(p => [...p, ''])
+  function toggleSuggestedRule(rule: string) {
+    setActiveRules(r =>
+      r.includes(rule) ? r.filter(x => x !== rule) : [...r, rule]
+    )
   }
 
-  function removePhotoField(i: number) {
-    setPhotoUrls(p => p.filter((_, idx) => idx !== i))
+  function addCustomRule() {
+    const trimmed = customRule.trim()
+    if (trimmed && !activeRules.includes(trimmed)) {
+      setActiveRules(r => [...r, trimmed])
+    }
+    setCustomRule('')
   }
 
-  function setPhoto(i: number, val: string) {
-    setPhotoUrls(p => p.map((u, idx) => idx === i ? val : u))
+  function removeRule(rule: string) {
+    setActiveRules(r => r.filter(x => x !== rule))
+  }
+
+  function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length) return
+    setPhotoFiles(prev => [...prev, ...files])
+    files.forEach(file => {
+      const reader = new FileReader()
+      reader.onload = ev => setPhotoPreviews(prev => [...prev, ev.target?.result as string])
+      reader.readAsDataURL(file)
+    })
+  }
+
+  function removePhoto(i: number) {
+    setPhotoFiles(p => p.filter((_, idx) => idx !== i))
+    setPhotoPreviews(p => p.filter((_, idx) => idx !== i))
+  }
+
+  async function uploadPhotos(profileId: string): Promise<string[]> {
+    const urls: string[] = []
+    for (let i = 0; i < photoFiles.length; i++) {
+      const file = photoFiles[i]
+      const ext  = file.name.split('.').pop() ?? 'jpg'
+      const path = `boats/${profileId}/${Date.now()}-${i}.${ext}`
+      const { error: upErr } = await supabase.storage
+        .from('boat-photos')
+        .upload(path, file, { upsert: false, contentType: file.type })
+      if (!upErr) {
+        const { data } = supabase.storage.from('boat-photos').getPublicUrl(path)
+        urls.push(data.publicUrl)
+      }
+      setUploadProgress(Math.round(((i + 1) / photoFiles.length) * 100))
+    }
+    return urls
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
 
-    if (!form.name.trim()) { setError('Nome é obrigatório.'); return }
+    if (!form.name.trim())        { setError('Nome é obrigatório.'); return }
     if (!form.description.trim()) { setError('Descrição é obrigatória.'); return }
+    if (Number(form.base_passengers) > Number(form.capacity)) {
+      setError('Passageiros inclusos no preço não pode ser maior que a capacidade máxima.')
+      return
+    }
 
     setSaving(true)
 
@@ -86,33 +156,34 @@ export default function NovaEmbarcacaoPage() {
 
     const { data: profile } = await supabase
       .from('profiles').select('id').eq('user_id', user.id).single()
-
     if (!profile) { setError('Perfil não encontrado.'); setSaving(false); return }
 
-    // Busca a marina padrão (Marina Pier 98)
     const { data: marina } = await supabase
       .from('marinas').select('id').limit(1).single()
 
-    // Gera slug
     const slug = form.name.toLowerCase()
       .normalize('NFD').replace(/[̀-ͯ]/g, '')
       .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 
-    // Cria a embarcação
+    const rulesText = activeRules.map(r => `• ${r}`).join('\n')
+
     const { data: boat, error: boatErr } = await supabase
       .from('boats')
       .insert({
-        name: form.name,
+        name:                   form.name,
         slug,
-        category: form.category,
-        capacity: Number(form.capacity),
-        size_ft: Number(form.size_ft),
-        base_price: Number(form.base_price),
-        description: form.description,
-        rules: form.rules,
-        owner_id: profile.id,
-        marina_id: marina?.id ?? null,
-        active: true,
+        category:               form.category,
+        capacity:               Number(form.capacity),
+        base_passengers:        Number(form.base_passengers),
+        size_ft:                Number(form.size_ft),
+        base_price:             Number(form.base_price),
+        price_per_extra_person: Number(form.price_per_extra_person),
+        description:            form.description,
+        rules:                  rulesText,
+        owner_id:               profile.id,
+        city_id:                (await supabase.from('cities').select('id').eq('slug', 'cabo-frio').single()).data?.id,
+        marina_id:              marina?.id ?? null,
+        status:                 'pending',
         amenities,
       })
       .select('id')
@@ -124,12 +195,21 @@ export default function NovaEmbarcacaoPage() {
       return
     }
 
-    // Salva fotos
-    const validPhotos = photoUrls.filter(u => u.trim())
-    if (validPhotos.length > 0) {
-      await supabase.from('boat_photos').insert(
-        validPhotos.map((url, i) => ({ boat_id: boat.id, url, order: i }))
-      )
+    // Upload e salvar fotos
+    if (photoFiles.length > 0) {
+      const uploadedUrls = await uploadPhotos(profile.id)
+      if (uploadedUrls.length > 0) {
+        await supabase.from('boat_photos').insert(
+          uploadedUrls.map((url, i) => ({
+            boat_id:  boat.id,
+            url,
+            order:    i,
+            is_cover: i === 0,
+          }))
+        )
+        // Capa da embarcação = primeira foto
+        await supabase.from('boats').update({ cover_photo: uploadedUrls[0] }).eq('id', boat.id)
+      }
     }
 
     router.push('/painel/embarcacoes')
@@ -159,46 +239,104 @@ export default function NovaEmbarcacaoPage() {
                 <Anchor className="w-4 h-4 text-[#00b4d8]" /> Dados básicos
               </h2>
               <div className="grid sm:grid-cols-2 gap-4">
+
                 <div className="sm:col-span-2">
                   <label className="text-xs font-semibold text-gray-500 block mb-1.5">NOME DA EMBARCAÇÃO *</label>
                   <input value={form.name} onChange={e => set('name', e.target.value)}
-                    placeholder="Ex: Focker 310" required
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#00b4d8] transition-colors" />
+                    placeholder="Ex: Focker 310" required className={inputCls} />
                 </div>
+
                 <div>
                   <label className="text-xs font-semibold text-gray-500 block mb-1.5">CATEGORIA</label>
-                  <select value={form.category} onChange={e => set('category', e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#00b4d8] transition-colors">
+                  <select value={form.category} onChange={e => set('category', e.target.value)} className={inputCls}>
                     {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 block mb-1.5">PREÇO BASE (R$)</label>
-                  <input type="number" value={form.base_price} onChange={e => set('base_price', e.target.value)}
-                    min={0} className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#00b4d8] transition-colors" />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 block mb-1.5">CAPACIDADE (pessoas)</label>
-                  <input type="number" value={form.capacity} onChange={e => set('capacity', e.target.value)}
-                    min={1} max={50} className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#00b4d8] transition-colors" />
-                </div>
+
                 <div>
                   <label className="text-xs font-semibold text-gray-500 block mb-1.5">TAMANHO (pés)</label>
                   <input type="number" value={form.size_ft} onChange={e => set('size_ft', e.target.value)}
-                    min={1} className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#00b4d8] transition-colors" />
+                    min={1} className={inputCls} />
                 </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 block mb-1.5">PREÇO BASE (R$)</label>
+                  <input type="number" value={form.base_price} onChange={e => set('base_price', e.target.value)}
+                    min={0} className={inputCls} />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 block mb-1.5">PASSAGEIROS INCLUSOS NO PREÇO</label>
+                  <input type="number" value={form.base_passengers} onChange={e => set('base_passengers', e.target.value)}
+                    min={1} max={form.capacity} className={inputCls} />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 block mb-1.5">CAPACIDADE MÁXIMA (pessoas)</label>
+                  <input type="number" value={form.capacity} onChange={e => set('capacity', e.target.value)}
+                    min={1} max={50} className={inputCls} />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 block mb-1.5">PREÇO POR PASSAGEIRO EXTRA (R$)</label>
+                  <input type="number" value={form.price_per_extra_person} onChange={e => set('price_per_extra_person', e.target.value)}
+                    min={0} className={inputCls} />
+                </div>
+
                 <div className="sm:col-span-2">
                   <label className="text-xs font-semibold text-gray-500 block mb-1.5">DESCRIÇÃO *</label>
                   <textarea value={form.description} onChange={e => set('description', e.target.value)}
                     rows={4} placeholder="Descreva sua embarcação..." required
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#00b4d8] transition-colors resize-none" />
+                    className={inputCls + ' resize-none'} />
                 </div>
-                <div className="sm:col-span-2">
-                  <label className="text-xs font-semibold text-gray-500 block mb-1.5">REGRAS DE BORDO</label>
-                  <textarea value={form.rules} onChange={e => set('rules', e.target.value)}
-                    rows={5}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#00b4d8] transition-colors resize-none font-mono text-xs" />
+              </div>
+            </div>
+
+            {/* Regras de bordo */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h2 className="font-semibold text-[#0a2540] mb-1">Regras de bordo</h2>
+              <p className="text-xs text-gray-400 mb-4">Selecione as sugestões e adicione regras personalizadas</p>
+
+              {/* Sugestões */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {RULES_SUGGESTIONS.map(rule => (
+                  <button key={rule} type="button" onClick={() => toggleSuggestedRule(rule)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                      activeRules.includes(rule)
+                        ? 'bg-[#00b4d8]/10 text-[#00b4d8] border-[#00b4d8]'
+                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+                    }`}>
+                    {activeRules.includes(rule) ? '✓ ' : '+ '}{rule}
+                  </button>
+                ))}
+              </div>
+
+              {/* Regras ativas */}
+              {activeRules.length > 0 && (
+                <div className="space-y-1.5 mb-4">
+                  {activeRules.map(rule => (
+                    <div key={rule} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
+                      <span className="text-gray-400 text-sm">•</span>
+                      <span className="flex-1 text-sm text-gray-700">{rule}</span>
+                      <button type="button" onClick={() => removeRule(rule)}
+                        className="text-gray-300 hover:text-red-400 transition-colors">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
+              )}
+
+              {/* Adicionar regra personalizada */}
+              <div className="flex gap-2">
+                <input value={customRule} onChange={e => setCustomRule(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addCustomRule())}
+                  placeholder="Adicionar regra personalizada..."
+                  className={inputCls} />
+                <button type="button" onClick={addCustomRule}
+                  className="px-4 py-2.5 bg-[#0a2540] text-white rounded-xl text-sm font-semibold hover:bg-[#0d3060] transition-colors whitespace-nowrap">
+                  <Plus className="w-4 h-4" />
+                </button>
               </div>
             </div>
 
@@ -221,27 +359,48 @@ export default function NovaEmbarcacaoPage() {
 
             {/* Fotos */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <h2 className="font-semibold text-[#0a2540] mb-1">Fotos</h2>
-              <p className="text-xs text-gray-400 mb-4">Cole as URLs das fotos (Unsplash, Google Drive público, etc.)</p>
-              <div className="space-y-3">
-                {photoUrls.map((url, i) => (
-                  <div key={i} className="flex gap-2">
-                    <input value={url} onChange={e => setPhoto(i, e.target.value)}
-                      placeholder={`URL da foto ${i + 1}`}
-                      className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#00b4d8] transition-colors" />
-                    {photoUrls.length > 1 && (
-                      <button type="button" onClick={() => removePhotoField(i)}
-                        className="p-2.5 text-gray-400 hover:text-red-500 transition-colors">
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <button type="button" onClick={addPhotoField}
-                  className="flex items-center gap-2 text-sm text-[#00b4d8] font-medium hover:underline">
-                  <Plus className="w-4 h-4" /> Adicionar foto
-                </button>
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="font-semibold text-[#0a2540]">Fotos</h2>
+                <Link href="/admin/midias" target="_blank"
+                  className="flex items-center gap-1.5 text-xs text-[#00b4d8] font-semibold hover:underline">
+                  <ImageIcon className="w-3.5 h-3.5" /> Gerenciar mídias
+                </Link>
               </div>
+              <p className="text-xs text-gray-400 mb-4">
+                A primeira foto será a capa da embarcação. Formatos aceitos: JPG, PNG, WEBP.
+              </p>
+
+              {/* Previews */}
+              {photoPreviews.length > 0 && (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-4">
+                  {photoPreviews.map((src, i) => (
+                    <div key={i} className="relative aspect-square rounded-xl overflow-hidden group">
+                      <img src={src} alt="" className="w-full h-full object-cover" />
+                      {i === 0 && (
+                        <span className="absolute top-1.5 left-1.5 bg-[#00b4d8] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md">
+                          CAPA
+                        </span>
+                      )}
+                      <button type="button" onClick={() => removePhoto(i)}
+                        className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Upload area */}
+              <button type="button" onClick={() => fileInputRef.current?.click()}
+                className="w-full border-2 border-dashed border-gray-200 rounded-xl py-8 flex flex-col items-center gap-2 hover:border-[#00b4d8] hover:bg-[#00b4d8]/5 transition-all group">
+                <Upload className="w-6 h-6 text-gray-300 group-hover:text-[#00b4d8] transition-colors" />
+                <span className="text-sm font-medium text-gray-400 group-hover:text-[#00b4d8] transition-colors">
+                  Clique para selecionar fotos
+                </span>
+                <span className="text-xs text-gray-300">ou arraste os arquivos aqui</span>
+              </button>
+              <input ref={fileInputRef} type="file" multiple accept="image/*"
+                onChange={handleFiles} className="hidden" />
             </div>
 
             {error && (
@@ -250,7 +409,18 @@ export default function NovaEmbarcacaoPage() {
               </div>
             )}
 
-            {/* Botões */}
+            {saving && uploadProgress > 0 && uploadProgress < 100 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+                <div className="flex items-center justify-between text-sm text-blue-600 mb-2">
+                  <span>Enviando fotos...</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-blue-100 rounded-full h-1.5">
+                  <div className="bg-[#00b4d8] h-1.5 rounded-full transition-all" style={{ width: `${uploadProgress}%` }} />
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-3">
               <Link href="/painel/embarcacoes"
                 className="flex-1 py-3 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 text-center hover:bg-gray-50 transition-colors">
