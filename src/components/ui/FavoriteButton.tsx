@@ -15,21 +15,28 @@ export function FavoriteButton({ boatId, className, size = 'md' }: FavoriteButto
   const supabase = createClient()
   const [favorited, setFavorited] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [userId, setUserId] = useState<string | null>(null)
+  const [profileId, setProfileId] = useState<string | null>(null)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) return
-      setUserId(data.user.id)
-      checkFavorite(data.user.id)
+      // favorites.user_id referencia profiles(id), não auth.users(id)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', data.user.id)
+        .single()
+      if (!profile) return
+      setProfileId(profile.id)
+      checkFavorite(profile.id)
     })
   }, [boatId])
 
-  async function checkFavorite(uid: string) {
+  async function checkFavorite(pid: string) {
     const { data } = await supabase
       .from('favorites')
       .select('id')
-      .eq('user_id', uid)
+      .eq('user_id', pid)
       .eq('boat_id', boatId)
       .maybeSingle()
     setFavorited(!!data)
@@ -39,7 +46,7 @@ export function FavoriteButton({ boatId, className, size = 'md' }: FavoriteButto
     e.preventDefault()
     e.stopPropagation()
 
-    if (!userId) {
+    if (!profileId) {
       window.location.href = '/login'
       return
     }
@@ -49,13 +56,13 @@ export function FavoriteButton({ boatId, className, size = 'md' }: FavoriteButto
       await supabase
         .from('favorites')
         .delete()
-        .eq('user_id', userId)
+        .eq('user_id', profileId)
         .eq('boat_id', boatId)
       setFavorited(false)
     } else {
       await supabase
         .from('favorites')
-        .insert({ user_id: userId, boat_id: boatId })
+        .insert({ user_id: profileId, boat_id: boatId })
       setFavorited(true)
     }
     setLoading(false)

@@ -14,15 +14,25 @@ export default function FavoritosPage() {
   const [favoritos, setFavoritos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+  const [profileId, setProfileId] = useState<string | null>(null)
+
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       setUser(data.user ?? null)
-      if (data.user) fetchFavoritos(data.user.id)
-      else setLoading(false)
+      if (!data.user) { setLoading(false); return }
+      // favorites.user_id → profiles(id), não auth.users(id)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', data.user.id)
+        .single()
+      if (!profile) { setLoading(false); return }
+      setProfileId(profile.id)
+      fetchFavoritos(profile.id)
     })
   }, [])
 
-  async function fetchFavoritos(userId: string) {
+  async function fetchFavoritos(pid: string) {
     const { data } = await supabase
       .from('favorites')
       .select(`
@@ -33,7 +43,7 @@ export default function FavoritosPage() {
           marinas ( name )
         )
       `)
-      .eq('user_id', userId)
+      .eq('user_id', pid)
       .order('created_at', { ascending: false })
 
     setFavoritos(data ?? [])
@@ -41,8 +51,8 @@ export default function FavoritosPage() {
   }
 
   async function removeFavorito(boatId: string) {
-    if (!user) return
-    await supabase.from('favorites').delete().eq('user_id', user.id).eq('boat_id', boatId)
+    if (!profileId) return
+    await supabase.from('favorites').delete().eq('user_id', profileId).eq('boat_id', boatId)
     setFavoritos(prev => prev.filter(f => f.boat_id !== boatId))
   }
 
