@@ -1,8 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { Header } from '@/components/layout/Header'
 import { formatCurrency } from '@/lib/utils'
-import { Star, ChevronLeft, Plus, Edit, Eye, ToggleLeft, ToggleRight } from 'lucide-react'
+import { ChevronLeft, Plus, Edit, Eye, ToggleLeft, ToggleRight } from 'lucide-react'
 import Link from 'next/link'
 
 export default async function PainelEmbarcacoesPage() {
@@ -23,7 +22,7 @@ export default async function PainelEmbarcacoesPage() {
   const { data: boats } = await supabase
     .from('boats')
     .select(`
-      id, name, slug, category, capacity, base_price, active,
+      id, name, slug, category, capacity, base_price, status,
       boat_photos ( url, "order" ),
       boat_routes (
         routes ( name )
@@ -65,10 +64,7 @@ export default async function PainelEmbarcacoesPage() {
   })
 
   return (
-    <>
-      <Header />
-      <div className="min-h-screen bg-[#f8fafc] pt-20">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
@@ -111,8 +107,8 @@ export default async function PainelEmbarcacoesPage() {
                         <h2 className="font-semibold text-[#0a2540] text-lg">{boat.name}</h2>
                         <p className="text-sm text-gray-400 capitalize">{boat.category} · {boat.capacity} passageiros</p>
                       </div>
-                      <span className={`flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full ${boat.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                        {boat.active ? 'Ativo' : 'Inativo'}
+                      <span className={`flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full ${boat.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        {boat.status === 'active' ? 'Ativo' : boat.status === 'pending' ? 'Pendente' : 'Inativo'}
                       </span>
                     </div>
 
@@ -148,9 +144,9 @@ export default async function PainelEmbarcacoesPage() {
                     <Edit className="w-4 h-4" /> Editar
                   </Link>
                   <div className="ml-auto flex items-center gap-1.5 px-3 py-2 text-sm text-gray-400 rounded-lg">
-                    {boat.active
+                    {boat.status === 'active'
                       ? <><ToggleRight className="w-4 h-4 text-green-500" /> Ativo</>
-                      : <><ToggleLeft className="w-4 h-4" /> Inativo</>
+                      : <><ToggleLeft className="w-4 h-4" /> {boat.status === 'pending' ? 'Pendente aprovação' : 'Inativo'}</>
                     }
                   </div>
                 </div>
@@ -172,8 +168,6 @@ export default async function PainelEmbarcacoesPage() {
             </Link>
           </div>
 
-        </div>
-      </div>
-    </>
+    </div>
   )
 }

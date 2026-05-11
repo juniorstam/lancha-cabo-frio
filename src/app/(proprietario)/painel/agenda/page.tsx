@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { Header } from '@/components/layout/Header'
 import { ChevronLeft } from 'lucide-react'
 import Link from 'next/link'
 import { AgendaCalendar } from './AgendaCalendar'
@@ -58,10 +57,7 @@ export default async function AgendaPage({
     : { data: [] }
 
   return (
-    <>
-      <Header />
-      <div className="min-h-screen bg-[#f8fafc] pt-20">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
           <div className="flex items-center gap-3 mb-8">
             <Link href="/painel" className="p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-400 hover:text-[#0a2540]">
@@ -87,8 +83,6 @@ export default async function AgendaPage({
               boat_name: (b.boats as any)?.name ?? '—',
             }))}
           />
-        </div>
-      </div>
-    </>
+    </div>
   )
 }

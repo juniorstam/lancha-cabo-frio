@@ -1,8 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { Header } from '@/components/layout/Header'
 import { formatCurrency } from '@/lib/utils'
-import { TrendingUp, Users, Calendar, DollarSign, Anchor, Star, Clock, CheckCircle, XCircle } from 'lucide-react'
+import { TrendingUp, Calendar, DollarSign, Anchor, Clock, CheckCircle, XCircle } from 'lucide-react'
 import Link from 'next/link'
 
 const STATUS_CONFIG = {
@@ -29,7 +28,7 @@ export default async function PainelPage() {
   // Barcos do owner
   const { data: boats } = await supabase
     .from('boats')
-    .select('id, name, slug, active, boat_photos(url, "order")')
+    .select('id, name, slug, status, boat_photos(url, "order")')
     .eq('owner_id', profile.id)
 
   const boatIds = (boats ?? []).map(b => b.id)
@@ -81,10 +80,7 @@ export default async function PainelPage() {
   const mesLabel  = now.toLocaleDateString('pt-BR', { month: 'long' })
 
   return (
-    <>
-      <Header />
-      <div className="min-h-screen bg-[#f8fafc] pt-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
           {/* Cabeçalho */}
           <div className="mb-8">
@@ -100,7 +96,7 @@ export default async function PainelPage() {
               { label: `Receita líquida (${mesLabel})`, value: formatCurrency(liquido), icon: DollarSign, color: 'bg-green-50 text-green-600' },
               { label: `Reservas confirmadas`, value: String(reservasConfirmadas), icon: Calendar, color: 'bg-blue-50 text-blue-600' },
               { label: 'Próximas reservas', value: String(upcoming.length), icon: TrendingUp, color: 'bg-purple-50 text-purple-600' },
-              { label: 'Embarcações ativas', value: String((boats ?? []).filter(b => b.active).length), icon: Anchor, color: 'bg-cyan-50 text-cyan-600' },
+              { label: 'Embarcações ativas', value: String((boats ?? []).filter(b => (b as any).status === 'active').length), icon: Anchor, color: 'bg-cyan-50 text-cyan-600' },
             ].map((stat) => (
               <div key={stat.label} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${stat.color}`}>
@@ -192,8 +188,8 @@ export default async function PainelPage() {
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-[#0a2540] text-sm truncate">{boat.name}</p>
                         </div>
-                        <span className={`text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ${boat.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                          {boat.active ? 'Ativo' : 'Inativo'}
+                        <span className={`text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ${(boat as any).status === 'active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                          {(boat as any).status === 'active' ? 'Ativo' : 'Pendente'}
                         </span>
                       </Link>
                     ))
@@ -224,8 +220,6 @@ export default async function PainelPage() {
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    </>
+    </div>
   )
 }

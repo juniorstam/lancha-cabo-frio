@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { Header } from '@/components/layout/Header'
 import { formatCurrency } from '@/lib/utils'
 import { CheckCircle, Clock, XCircle, Users, Phone, ChevronLeft } from 'lucide-react'
 import Link from 'next/link'
@@ -44,17 +43,14 @@ export default async function PainelReservasPage({
 
   if (boatIds.length === 0) {
     return (
-      <>
-        <Header />
-        <div className="min-h-screen bg-[#f8fafc] pt-20 flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-gray-400 mb-4">Nenhuma embarcação cadastrada ainda.</p>
-            <Link href="/painel/embarcacoes/nova" className="px-5 py-2.5 bg-[#0a2540] text-white rounded-xl text-sm font-semibold">
-              Cadastrar embarcação
-            </Link>
-          </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-gray-400 mb-4">Nenhuma embarcação cadastrada ainda.</p>
+          <Link href="/painel/embarcacoes/nova" className="px-5 py-2.5 bg-[#0a2540] text-white rounded-xl text-sm font-semibold">
+            Cadastrar embarcação
+          </Link>
         </div>
-      </>
+      </div>
     )
   }
 
@@ -80,10 +76,7 @@ export default async function PainelReservasPage({
     .reduce((s, r) => s + Number(r.total_amount), 0)
 
   return (
-    <>
-      <Header />
-      <div className="min-h-screen bg-[#f8fafc] pt-20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
           <div className="flex items-center gap-3 mb-8">
             <Link href="/painel" className="p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-400 hover:text-[#0a2540]">
@@ -162,8 +155,6 @@ export default async function PainelReservasPage({
             )}
           </div>
 
-        </div>
-      </div>
-    </>
+    </div>
   )
 }

@@ -2,7 +2,6 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Header } from '@/components/layout/Header'
 import { createClient } from '@/lib/supabase/client'
 import { ChevronLeft, Anchor, Plus, X, Upload, Image as ImageIcon } from 'lucide-react'
 import Link from 'next/link'
@@ -216,10 +215,7 @@ export default function NovaEmbarcacaoPage() {
   }
 
   return (
-    <>
-      <Header />
-      <div className="min-h-screen bg-[#f8fafc] pt-20">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
           <div className="flex items-center gap-3 mb-8">
             <Link href="/painel/embarcacoes" className="p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-400 hover:text-[#0a2540]">
@@ -361,7 +357,7 @@ export default function NovaEmbarcacaoPage() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <div className="flex items-center justify-between mb-1">
                 <h2 className="font-semibold text-[#0a2540]">Fotos</h2>
-                <Link href="/admin/midias" target="_blank"
+                <Link href="/painel/midias" target="_blank"
                   className="flex items-center gap-1.5 text-xs text-[#00b4d8] font-semibold hover:underline">
                   <ImageIcon className="w-3.5 h-3.5" /> Gerenciar mídias
                 </Link>
@@ -432,8 +428,6 @@ export default function NovaEmbarcacaoPage() {
               </button>
             </div>
           </form>
-        </div>
-      </div>
-    </>
+    </div>
   )
 }
