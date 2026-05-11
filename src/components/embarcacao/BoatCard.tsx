@@ -1,12 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { Heart, Star, Users, Ruler, MapPin, Anchor } from 'lucide-react'
+import { Star, Users, Ruler, MapPin } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { formatCurrency } from '@/lib/utils'
 import { BOAT_CATEGORIES, AMENITIES_ICONS } from '@/constants'
 import type { Boat } from '@/types'
 import { cn } from '@/lib/utils'
+import { FavoriteButton } from '@/components/ui/FavoriteButton'
 
 interface BoatCardProps {
   boat: Boat & { avg_rating?: number; total_reviews?: number }
@@ -49,12 +50,7 @@ export function BoatCard({ boat, index = 0, variant = 'default' }: BoatCardProps
               <div>
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <h3 className="font-semibold text-[#0a2540] text-lg">{boat.name}</h3>
-                  <button
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
-                    className="p-1.5 rounded-full hover:bg-gray-100 transition-colors flex-shrink-0"
-                  >
-                    <Heart className="w-4 h-4 text-gray-400" />
-                  </button>
+                  <FavoriteButton boatId={boat.id} size="sm" className="flex-shrink-0" />
                 </div>
 
                 <div className="flex items-center gap-1 text-gray-400 text-xs mb-3">
@@ -124,12 +120,7 @@ export function BoatCard({ boat, index = 0, variant = 'default' }: BoatCardProps
                 {categoryLabel}
               </span>
             </div>
-            <button
-              className="absolute top-3 right-3 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white shadow-sm transition-colors"
-              onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
-            >
-              <Heart className="w-4 h-4 text-gray-400 hover:text-red-500 transition-colors" />
-            </button>
+            <FavoriteButton boatId={boat.id} className="absolute top-3 right-3" />
 
             {/* Amenidades sobrepostas */}
             {amenityIcons.length > 0 && (
