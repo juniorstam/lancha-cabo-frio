@@ -44,6 +44,7 @@ export default function NovaEmbarcacaoPage() {
   const router = useRouter()
   const supabase = createClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [dragging, setDragging] = useState(false)
 
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState('')
@@ -103,15 +104,39 @@ export default function NovaEmbarcacaoPage() {
     setActiveRules(r => r.filter(x => x !== rule))
   }
 
-  function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? [])
-    if (!files.length) return
-    setPhotoFiles(prev => [...prev, ...files])
-    files.forEach(file => {
+  function addFiles(files: File[]) {
+    const images = files.filter(f => f.type.startsWith('image/'))
+    if (!images.length) return
+    setPhotoFiles(prev => [...prev, ...images])
+    images.forEach(file => {
       const reader = new FileReader()
       reader.onload = ev => setPhotoPreviews(prev => [...prev, ev.target?.result as string])
       reader.readAsDataURL(file)
     })
+  }
+
+  function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    addFiles(Array.from(e.target.files ?? []))
+    e.target.value = ''
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragging(true)
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragging(false)
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragging(false)
+    addFiles(Array.from(e.dataTransfer.files))
   }
 
   function removePhoto(i: number) {
@@ -387,14 +412,24 @@ export default function NovaEmbarcacaoPage() {
               )}
 
               {/* Upload area */}
-              <button type="button" onClick={() => fileInputRef.current?.click()}
-                className="w-full border-2 border-dashed border-gray-200 rounded-xl py-8 flex flex-col items-center gap-2 hover:border-[#00b4d8] hover:bg-[#00b4d8]/5 transition-all group">
-                <Upload className="w-6 h-6 text-gray-300 group-hover:text-[#00b4d8] transition-colors" />
-                <span className="text-sm font-medium text-gray-400 group-hover:text-[#00b4d8] transition-colors">
-                  Clique para selecionar fotos
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={handleDragOver}
+                onDragEnter={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`w-full border-2 border-dashed rounded-xl py-8 flex flex-col items-center gap-2 cursor-pointer transition-all select-none ${
+                  dragging
+                    ? 'border-[#00b4d8] bg-[#00b4d8]/10 scale-[1.01]'
+                    : 'border-gray-200 hover:border-[#00b4d8] hover:bg-[#00b4d8]/5'
+                }`}
+              >
+                <Upload className={`w-6 h-6 transition-colors ${dragging ? 'text-[#00b4d8]' : 'text-gray-300'}`} />
+                <span className={`text-sm font-medium transition-colors ${dragging ? 'text-[#00b4d8]' : 'text-gray-400'}`}>
+                  {dragging ? 'Solte as fotos aqui' : 'Clique para selecionar fotos'}
                 </span>
                 <span className="text-xs text-gray-300">ou arraste os arquivos aqui</span>
-              </button>
+              </div>
               <input ref={fileInputRef} type="file" multiple accept="image/*"
                 onChange={handleFiles} className="hidden" />
             </div>
