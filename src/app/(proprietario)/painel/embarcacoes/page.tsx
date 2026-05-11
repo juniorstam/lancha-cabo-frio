@@ -1,19 +1,69 @@
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
 import { Header } from '@/components/layout/Header'
 import { formatCurrency } from '@/lib/utils'
-import { Anchor, Star, Users, ChevronLeft, Plus, Edit, Eye, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Star, ChevronLeft, Plus, Edit, Eye, ToggleLeft, ToggleRight } from 'lucide-react'
 import Link from 'next/link'
 
-const EMBARCACOES = [
-  {
-    id: '1', name: 'Focker 310', category: 'Lancha', capacity: 10,
-    base_price: 800, avg_rating: 4.9, total_reviews: 24,
-    active: true, bookings_month: 12,
-    image: 'https://images.unsplash.com/photo-1605281317010-fe5ffe798166?q=80&w=400',
-    routes: ['Ilha do Japonês', 'Arraial do Cabo', 'Praia das Conchas'],
-  },
-]
+export default async function PainelEmbarcacoesPage() {
+  const supabase = await createClient()
 
-export default function PainelEmbarcacoesPage() {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (!profile || profile.role === 'client') redirect('/')
+
+  // Barcos com fotos e roteiros
+  const { data: boats } = await supabase
+    .from('boats')
+    .select(`
+      id, name, slug, category, capacity, base_price, active,
+      boat_photos ( url, "order" ),
+      boat_routes (
+        routes ( name )
+      )
+    `)
+    .eq('owner_id', profile.id)
+    .order('created_at', { ascending: false })
+
+  // Contagem de reservas deste mês por barco
+  const boatIds = (boats ?? []).map(b => b.id)
+  const now = new Date()
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+  const lastDay  = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
+
+  const { data: bookingCounts } = boatIds.length > 0
+    ? await supabase
+        .from('bookings')
+        .select('boat_id')
+        .in('boat_id', boatIds)
+        .gte('date', firstDay)
+        .lte('date', lastDay)
+        .neq('status', 'cancelled')
+    : { data: [] }
+
+  const countByBoat = (bookingCounts ?? []).reduce<Record<string, number>>((acc, b) => {
+    acc[b.boat_id] = (acc[b.boat_id] ?? 0) + 1
+    return acc
+  }, {})
+
+  const embarcacoes = (boats ?? []).map(b => {
+    const photos = (b.boat_photos as any[]).sort((a, b) => a.order - b.order)
+    const routes = (b.boat_routes as any[]).map(br => br.routes?.name).filter(Boolean)
+    return {
+      ...b,
+      photo: photos[0]?.url ?? null,
+      routes,
+      bookings_month: countByBoat[b.id] ?? 0,
+    }
+  })
+
   return (
     <>
       <Header />
@@ -27,7 +77,9 @@ export default function PainelEmbarcacoesPage() {
               </Link>
               <div>
                 <h1 className="font-playfair text-3xl font-bold text-[#0a2540]">Minhas Embarcações</h1>
-                <p className="text-gray-400 text-sm mt-0.5">{EMBARCACOES.length} embarcação cadastrada</p>
+                <p className="text-gray-400 text-sm mt-0.5">
+                  {embarcacoes.length} {embarcacoes.length === 1 ? 'embarcação cadastrada' : 'embarcações cadastradas'}
+                </p>
               </div>
             </div>
             <Link
@@ -41,12 +93,15 @@ export default function PainelEmbarcacoesPage() {
 
           {/* Lista */}
           <div className="space-y-4">
-            {EMBARCACOES.map(boat => (
+            {embarcacoes.map(boat => (
               <div key={boat.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="flex gap-5 p-5">
                   {/* Imagem */}
-                  <div className="w-32 h-24 rounded-xl overflow-hidden flex-shrink-0">
-                    <img src={boat.image} alt={boat.name} className="w-full h-full object-cover" />
+                  <div className="w-32 h-24 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100">
+                    {boat.photo
+                      ? <img src={boat.photo} alt={boat.name} className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">Sem foto</div>
+                    }
                   </div>
 
                   {/* Info */}
@@ -54,37 +109,34 @@ export default function PainelEmbarcacoesPage() {
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <h2 className="font-semibold text-[#0a2540] text-lg">{boat.name}</h2>
-                        <p className="text-sm text-gray-400">{boat.category} · {boat.capacity} passageiros</p>
+                        <p className="text-sm text-gray-400 capitalize">{boat.category} · {boat.capacity} passageiros</p>
                       </div>
                       <span className={`flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full ${boat.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                         {boat.active ? 'Ativo' : 'Inativo'}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-4 mt-2 text-sm">
-                      <span className="flex items-center gap-1 text-gray-600">
-                        <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-                        {boat.avg_rating} ({boat.total_reviews} avaliações)
-                      </span>
-                      <span className="text-gray-400">·</span>
+                    <div className="flex flex-wrap items-center gap-3 mt-2 text-sm">
                       <span className="text-gray-600">{boat.bookings_month} reservas este mês</span>
-                      <span className="text-gray-400">·</span>
-                      <span className="font-semibold text-[#0a2540]">a partir de {formatCurrency(boat.base_price)}</span>
+                      <span className="text-gray-300">·</span>
+                      <span className="font-semibold text-[#0a2540]">a partir de {formatCurrency(Number(boat.base_price))}</span>
                     </div>
 
                     {/* Roteiros */}
-                    <div className="flex flex-wrap gap-1.5 mt-3">
-                      {boat.routes.map(r => (
-                        <span key={r} className="text-xs bg-[#00b4d8]/10 text-[#00b4d8] px-2.5 py-0.5 rounded-full font-medium">{r}</span>
-                      ))}
-                    </div>
+                    {boat.routes.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-3">
+                        {boat.routes.map((r: string) => (
+                          <span key={r} className="text-xs bg-[#00b4d8]/10 text-[#00b4d8] px-2.5 py-0.5 rounded-full font-medium">{r}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Ações */}
                 <div className="flex items-center gap-2 px-5 py-3 bg-gray-50 border-t border-gray-100">
                   <Link
-                    href={`/embarcacoes/${boat.id}`}
+                    href={`/embarcacoes/${boat.slug}`}
                     className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 hover:text-[#0a2540] hover:bg-white rounded-lg transition-colors"
                   >
                     <Eye className="w-4 h-4" /> Ver página
@@ -95,12 +147,12 @@ export default function PainelEmbarcacoesPage() {
                   >
                     <Edit className="w-4 h-4" /> Editar
                   </Link>
-                  <button className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 hover:text-[#0a2540] hover:bg-white rounded-lg transition-colors ml-auto">
+                  <div className="ml-auto flex items-center gap-1.5 px-3 py-2 text-sm text-gray-400 rounded-lg">
                     {boat.active
-                      ? <><ToggleRight className="w-4 h-4 text-green-500" /> Desativar</>
-                      : <><ToggleLeft className="w-4 h-4" /> Ativar</>
+                      ? <><ToggleRight className="w-4 h-4 text-green-500" /> Ativo</>
+                      : <><ToggleLeft className="w-4 h-4" /> Inativo</>
                     }
-                  </button>
+                  </div>
                 </div>
               </div>
             ))}
