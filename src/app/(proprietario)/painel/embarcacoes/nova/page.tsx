@@ -3,8 +3,9 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ChevronLeft, Anchor, Plus, X, Upload, Image as ImageIcon, ChevronDown } from 'lucide-react'
+import { ChevronLeft, Anchor, Plus, X, Upload, Image as ImageIcon, ChevronDown, MapPin } from 'lucide-react'
 import Link from 'next/link'
+import { LocationPicker, type LocationValue } from '@/components/ui/LocationPicker'
 
 const CATEGORIES = [
   { value: 'lancha',   label: 'Lancha' },
@@ -73,6 +74,11 @@ export default function NovaEmbarcacaoPage() {
     'Lixo não deve ser jogado no mar',
   ])
   const [customRule, setCustomRule] = useState('')
+
+  // Local de embarque
+  const [boarding, setBoarding] = useState<LocationValue>({
+    name: '', address: '', lat: 0, lng: 0,
+  })
 
   // Fotos
   const [photoFiles,    setPhotoFiles]    = useState<File[]>([])
@@ -206,6 +212,10 @@ export default function NovaEmbarcacaoPage() {
         price_per_extra_person: Number(form.price_per_extra_person),
         description:            form.description,
         rules:                  rulesText,
+        boarding_name:          boarding.name || null,
+        boarding_address:       boarding.address || null,
+        boarding_lat:           boarding.lat || null,
+        boarding_lng:           boarding.lng || null,
         owner_id:               profile.id,
         city_id:                (await supabase.from('cities').select('id').eq('slug', 'cabo-frio').single()).data?.id,
         marina_id:              marina?.id ?? null,
@@ -438,6 +448,17 @@ export default function NovaEmbarcacaoPage() {
               </div>
               <input ref={fileInputRef} type="file" multiple accept="image/*"
                 onChange={handleFiles} className="hidden" />
+            </div>
+
+            {/* Local de embarque */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h2 className="font-semibold text-[#0a2540] mb-1 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-[#00b4d8]" /> Local de embarque
+              </h2>
+              <p className="text-xs text-gray-400 mb-5">
+                Informe onde os passageiros devem se apresentar. Clique no mapa ou arraste o marcador para ajustar a posição.
+              </p>
+              <LocationPicker value={boarding} onChange={setBoarding} />
             </div>
 
             {/* Termos de uso */}

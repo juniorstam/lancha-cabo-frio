@@ -32,12 +32,16 @@ export function BoatCard({ boat, index = 0, variant = 'default' }: BoatCardProps
         <Link href={`/embarcacoes/${boat.slug}`} className="group block">
           <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 flex">
             {/* Foto */}
-            <div className="relative w-48 flex-shrink-0 overflow-hidden">
-              <img
-                src={boat.cover_photo || 'https://images.unsplash.com/photo-1567899378494-47b22a2ae96a?q=80&w=400&auto=format&fit=crop'}
-                alt={boat.name}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
+            <div className="relative w-48 flex-shrink-0 overflow-hidden bg-gradient-to-br from-[#0a2540] to-[#00b4d8]">
+              {boat.cover_photo ? (
+                <img
+                  src={boat.cover_photo}
+                  alt={boat.name}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-white/30 text-5xl select-none">⚓</div>
+              )}
               <div className="absolute top-3 left-3">
                 <span className="px-2 py-0.5 bg-[#0a2540]/80 text-white text-xs font-semibold rounded-full">
                   {categoryLabel}
@@ -109,12 +113,16 @@ export function BoatCard({ boat, index = 0, variant = 'default' }: BoatCardProps
         <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
 
           {/* Foto */}
-          <div className="relative aspect-[4/3] overflow-hidden">
-            <img
-              src={boat.cover_photo || 'https://images.unsplash.com/photo-1567899378494-47b22a2ae96a?q=80&w=600&auto=format&fit=crop'}
-              alt={boat.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            />
+          <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-[#0a2540] to-[#00b4d8]">
+            {boat.cover_photo ? (
+              <img
+                src={boat.cover_photo}
+                alt={boat.name}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-white/20 text-7xl select-none">⚓</div>
+            )}
             <div className="absolute top-3 left-3">
               <span className="px-2.5 py-1 bg-[#0a2540]/80 backdrop-blur-sm text-white text-xs font-semibold rounded-full uppercase tracking-wide">
                 {categoryLabel}

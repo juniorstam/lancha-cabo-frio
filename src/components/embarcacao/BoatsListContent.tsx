@@ -37,7 +37,8 @@ export function BoatsListContent() {
         .from('boats_with_rating')
         .select(`
           *,
-          marina:marinas(id, name, address, lat, lng)
+          marina:marinas(id, name, address, lat, lng),
+          boat_photos(url, "order")
         `)
         .eq('status', 'active')
 
@@ -47,7 +48,18 @@ export function BoatsListContent() {
       if (passengers) query = query.gte('capacity', passengers)
 
       const { data } = await query
-      setBoats((data as any[]) ?? [])
+
+      // Normalize cover_photo: use stored cover_photo first,
+      // then fall back to first boat_photo sorted by order
+      const normalized = (data as any[] ?? []).map(b => {
+        if (!b.cover_photo && Array.isArray(b.boat_photos) && b.boat_photos.length > 0) {
+          const sorted = [...b.boat_photos].sort((a: any, z: any) => a.order - z.order)
+          return { ...b, cover_photo: sorted[0].url }
+        }
+        return b
+      })
+
+      setBoats(normalized)
       setLoading(false)
     }
 
